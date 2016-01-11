@@ -11,15 +11,15 @@ GREP	= grep
 
 default: daytime
 
-daytime: daytime-server.c
-	$(CC) $(CFLAGS) -c daytime-server.c -o daytime-server.o
-	$(CC) daytime-server.o -o daytime-server
+daytime: daytime_server.c
+	$(CC) $(CFLAGS) -c daytime_server.c -o daytime_server.o
+	$(CC) daytime_server.o -o daytime_server
 
 clean:
 	rm -f *.o
 
 tar:
-	tar -cvzf VCS_TCPIP_AnnaGlock_AndreasRubik_Ersatzaufgabe.tgz daytime-server.c Makefile README.md
+	tar -cvzf VCS_TCPIP_AnnaGlock_AndreasRubik_Ersatzaufgabe.tgz daytime_server.c Makefile README.md
 
 zip:
-	zip VCS_TCPIP_AnnaGlock_AndreasRubik_Ersatzaufgabe.zip daytime-server.c Makefile README.md
+	zip VCS_TCPIP_AnnaGlock_AndreasRubik_Ersatzaufgabe.zip daytime_server.c Makefile README.md
