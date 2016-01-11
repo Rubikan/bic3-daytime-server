@@ -11,7 +11,7 @@ GREP	= grep
 
 default: daytime
 
-daytime: simple_message_server.c
+daytime: daytime-ixeserver.c
 	$(CC) $(CFLAGS) -c daytime-server.c -o daytime-server.o
 	$(CC) daytime-server.o -o daytime-server
 
