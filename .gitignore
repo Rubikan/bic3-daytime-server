@@ -1,3 +1,7 @@
+# Project custom
+daytime_server
+daytime_server.o
+
 # IntelliJ based
 *.iml
 .idea/
