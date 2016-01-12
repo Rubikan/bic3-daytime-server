@@ -11,6 +11,7 @@
  *
  */
 
+#include <time.h>
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
@@ -22,6 +23,7 @@
 #define DEFAULT_PORT 13
 #define MIN_PORT 0
 #define MAX_PORT 65535
+#define MAX_SUDOPORT
 
 static void error(char* message, char* argv0);
 
@@ -69,8 +71,13 @@ int main(int argc, char* argv[]) {
     serverSocketAdress.sin_port = htons(port);
 
     if (bind(serverSocketID, (struct sockaddr*)&serverSocketAdress, sizeof(serverSocketAdress)) < 0) {
-        close(serverSocketID);
-        error("Error binding socket!\n", argv[0]);
+        if (errno == EACCES) {
+            close(serverSocketID);
+            error("Error: To use ports below 1024, this program needs to be run as superuser (sudo)! The default port used is 13\n", argv[0]);
+        } else {
+            close(serverSocketID);
+            error("Error binding socket!\n", argv[0]);
+        }
     }
 
     if (listen(serverSocketID, 5) == -1) {
@@ -81,7 +88,8 @@ int main(int argc, char* argv[]) {
     for(;;) {
         // Accept a connection on the server port
         int c = sizeof(struct sockaddr_in);
-        connectedClient = accept(serverSocketID, (struct sockaddr*)&clientSocketAdress, (socklen_t*)&c);
+        struct sockaddr_in clientSocketAdress;
+        int connectedClient = accept(serverSocketID, (struct sockaddr*)&clientSocketAdress, (socklen_t*)&c);
         if (connectedClient < 0) {
             if (errno == EINTR) {
                 // accept was interrupted, trying again
@@ -92,9 +100,13 @@ int main(int argc, char* argv[]) {
                 error("Error accepting incoming connection!\n", argv[0]);
             }
         }
+        time_t timer;
+        char buffer[255];
+        struct tm* tm_info;
+        time(&timer);
+        tm_info = localtime(&timer);
+        strftime(buffer, 255, "%A, %B %d, %Y %H:%M:%S-%Z", tm_info);
     }
-
-    return EXIT_SUCCESS;
 }
 
 static void error(char* message, char* argv0) {
