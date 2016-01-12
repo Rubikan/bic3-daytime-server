@@ -20,9 +20,11 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 
-#define DEFAULT_PORT 13
+#define BACKLOG 5
 #define MIN_PORT 0
 #define MAX_PORT 65535
+#define DEFAULT_PORT 13
+#define MESSAGEBUFFER 255
 
 static void error(char* message, char* argv0);
 
@@ -79,7 +81,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    if (listen(serverSocketID, 5) == -1) {
+    if (listen(serverSocketID, BACKLOG) == -1) {
         close(serverSocketID);
         error("Error listening on socket!\n", argv[0]);
     }
@@ -101,7 +103,7 @@ int main(int argc, char* argv[]) {
         }
 
         time_t timer;
-        char buffer[255];
+        char buffer[MESSAGEBUFFER];
         struct tm* tm_info;
         time(&timer);
         tm_info = localtime(&timer);
