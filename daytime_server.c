@@ -23,7 +23,6 @@
 #define DEFAULT_PORT 13
 #define MIN_PORT 0
 #define MAX_PORT 65535
-#define MAX_SUDOPORT
 
 static void error(char* message, char* argv0);
 
@@ -100,12 +99,19 @@ int main(int argc, char* argv[]) {
                 error("Error accepting incoming connection!\n", argv[0]);
             }
         }
+
         time_t timer;
         char buffer[255];
         struct tm* tm_info;
         time(&timer);
         tm_info = localtime(&timer);
-        strftime(buffer, 255, "%A, %B %d, %Y %H:%M:%S-%Z", tm_info);
+        strftime(buffer, sizeof(buffer), "%A, %B %d, %Y %H:%M:%S-%Z\n", tm_info);
+
+        if (write(connectedClient, buffer, sizeof(buffer)) < 0) {
+            error("Error writing to socket!\n", argv[0]);
+        }
+
+        shutdown(connectedClient, SHUT_RDWR);
     }
 }
 
