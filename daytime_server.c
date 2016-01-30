@@ -120,7 +120,7 @@ int main(int argc, char* argv[]) {
         }
         close(serverSocketID);
     }
-dded c
+
     if(!serv_if) {
         freeaddrinfo(serv_interfaces);
         error("Error creating sockets on interfaces!\n", argv[0]);
