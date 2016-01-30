@@ -27,13 +27,14 @@
 #define MBUFF_START_SIZE 8
 #define MBUFF_STEP_SIZE 2
 
-// Define log levels for the "logger"
-
-#define DEBUG 0
-#define ERROR 1
-
 static void error(char* message, char* argv0);
 
+/**
+ * \brief Server application that returns a current timestamp if connected via telnet
+ *
+ * \param argc Argument count
+ * \param argv[] Argument vector
+ */
 int main(int argc, char* argv[]) {
     // First, check if there is either no argument or 2
     if (argc != 1 && argc != 3) {
@@ -114,9 +115,13 @@ int main(int argc, char* argv[]) {
         if (message == NULL) {
             error("Error allocating space for message!\n", argv[0]);
         }
-        memset(message, 0, tempsize);
+        if (memset(message, 0, tempsize) != 0) {
+            error("Error setting memory to zero!\n", argv[0]);
+        }
         time_t timer;
-        time(&timer);
+        if (time(&timer) == (time_t)(-1)) {
+            error("Error getting calendar time!\n", argv[0]);
+        }
         struct tm* tm_info;
         tm_info = localtime(&timer);
         if (tm_info == NULL) {
@@ -144,14 +149,24 @@ int main(int argc, char* argv[]) {
     }
 }
 
+/**
+ * \brief Prints error messages and exits, also exit if an error happens
+ *
+ * \param message The error message that should be printed
+ * \param argv0 The content of argv[0] to be included in the error message
+ */
 static void error(char* message, char* argv0) {
     // Length of all strings, + 3 for zero terminator and ": " in between,
     char* output = (char*) malloc(strlen(message) + strlen(argv0) + 3);
     strcpy(output, argv0);
     // strcat instead of strncat should be okay, since string literals are always zero terminated
-    strcat(output, ": ");
-    strcat(output, message);
-    if(fprintf(stderr, "%s", output) < 0) {
+    if (strcat(output, ": ") != 0) {
+        exit(EXIT_FAILURE);
+    }
+    if (strcat(output, message) != 0) {
+        exit(EXIT_FAILURE);
+    }
+    if (fprintf(stderr, "%s", output) < 0) {
         exit(EXIT_FAILURE);
     }
     if(fflush(stderr) == EOF) {
