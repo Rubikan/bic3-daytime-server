@@ -24,7 +24,13 @@
 #define MIN_PORT 0
 #define MAX_PORT 65535
 #define DEFAULT_PORT 13
-#define MESSAGEBUFFER 255
+#define MBUFF_START_SIZE 8
+#define MBUFF_STEP_SIZE 2
+
+// Define log levels for the "logger"
+
+#define DEBUG 0
+#define ERROR 1
 
 static void error(char* message, char* argv0);
 
@@ -74,7 +80,7 @@ int main(int argc, char* argv[]) {
     if (bind(serverSocketID, (struct sockaddr*)&serverSocketAdress, sizeof(serverSocketAdress)) < 0) {
         if (errno == EACCES) {
             close(serverSocketID);
-            error("Error: To use ports below 1024, this program needs to be run as superuser (sudo)! The default port used is 13\n", argv[0]);
+            error("Error: To use ports below 1024, this program needs to be run as superuser (sudo)! The default port used is 13.\n", argv[0]);
         } else {
             close(serverSocketID);
             error("Error binding socket!\n", argv[0]);
@@ -102,31 +108,45 @@ int main(int argc, char* argv[]) {
             }
         }
 
+        char* message;
+        int tempsize = MBUFF_START_SIZE;
+        message = (char*) malloc(tempsize);
+        memset(message, 0, tempsize);
         time_t timer;
-        char buffer[MESSAGEBUFFER];
-        memset(buffer, 0, MESSAGEBUFFER);
-        struct tm* tm_info;
         time(&timer);
+        struct tm* tm_info;
         tm_info = localtime(&timer);
-        strftime(buffer, sizeof(buffer), "%A, %B %d, %Y %H:%M:%S-%Z\n", tm_info);
 
-        if (write(connectedClient, buffer, sizeof(buffer)) < 0) {
+        while(strftime(message, tempsize, "%A, %B %d, %Y %H:%M:%S-%Z\n", tm_info) <= 0) {
+            fprintf(stdout, "Loop, Message Size = %d.\n", tempsize);
+            tempsize *= MBUFF_STEP_SIZE;
+            fprintf(stdout, "Loop, Message after resize = %d.\n", tempsize);;
+            if((message = realloc(message, tempsize)) == NULL) {
+                error("Error resizing message buffer!\n", argv[0]);
+            }
+            memset(message, 0, tempsize);
+        }
+
+        fprintf(stdout, "%s", message);
+
+        if (write(connectedClient, message, tempsize) < 0) {
             error("Error writing to socket!\n", argv[0]);
         }
 
+        free(message);
         shutdown(connectedClient, SHUT_RDWR);
     }
 }
 
 static void error(char* message, char* argv0) {
-    // Length of both strings + 3 for zero terminator and ": " appended in between
+    // Length of all strings, + 3 for zero terminator and ": " in between,
     char* output = (char*) malloc(strlen(message) + strlen(argv0) + 3);
     strcpy(output, argv0);
-    // strcat instead of strncat should be okay, since Strings in quote signs are always zero terminated
+    // strcat instead of strncat should be okay, since string literals are always zero terminated
     strcat(output, ": ");
     strcat(output, message);
-    //TODO: errno wird nicht geprintet
-    fprintf(stderr, output, strerror(errno));
+    fprintf(stderr, "%s", output);
+    fflush(stderr);
     free(output);
     exit(EXIT_FAILURE);
 }
