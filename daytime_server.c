@@ -14,10 +14,12 @@
 #include <time.h>
 #include <stdio.h>
 #include <errno.h>
+#include <netdb.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <sys/types.h>
 #include <sys/socket.h>
 
 #define BACKLOG 5
@@ -36,19 +38,33 @@ static void error(char* message, char* argv0);
  * \param argv[] Argument vector
  */
 int main(int argc, char* argv[]) {
+    int o;
+    int tempsize;
+    int port = -1;
+    int optval = 1;
+    int sockaddr_size;
+    int serverSocketID;
+    int connectedClient;
+    struct addrinfo *serv_if;
+    struct addrinfo getserveraddr;
+    struct addrinfo *serv_interfaces;
+    struct sockaddr_in clientSocketAdress;
+    char* message;
     char* checkvar;
+    char port_char[5];
+    struct tm* tm_info;
+
     // First, check if there is either no argument or 2
     if (argc != 1 && argc != 3) {
         error("Usage: daytime_server [-p port]\n", argv[0]);
     }
     // Check option arguments for port, use default if no port is given
-    int o;
-    int port = -1;
     while ((o = getopt(argc, argv, "p:")) != -1) {
         switch(o) {
             case 'p':
                 errno = 0;
                 port = strtol(optarg, &checkvar, 10);
+                sprintf(port_char,"%d",port);
                 if (errno == ERANGE || errno == EINVAL) {
                     error("Invalid input!\n", argv[0]);
                 }
@@ -67,30 +83,48 @@ int main(int argc, char* argv[]) {
     if (port == -1) {
         // No port given, using default port
         port = DEFAULT_PORT;
+        sprintf(port_char,"%d",port);
     }
 
-    int serverSocketID = socket(AF_INET, SOCK_STREAM, 0);
-    if (serverSocketID == -1) {
-        error("Error creating socket!\n", argv[0]);
+    memset(&getserveraddr, 0, sizeof getserveraddr);
+    getserveraddr.ai_flags = AI_PASSIVE; /* Server is passive */
+    getserveraddr.ai_family = AF_UNSPEC; /* Server only listens on IPv4 */
+    getserveraddr.ai_socktype = SOCK_STREAM; /* TCP */
+
+    if (getaddrinfo(NULL, (const char*) &port_char, &getserveraddr, &serv_interfaces)) {
+        error("Error while requesting server network interfaces.\n", argv[0]);
     }
 
-    struct sockaddr_in serverSocketAdress;
-    // Internet addresses
-    serverSocketAdress.sin_family = AF_INET;
-    // Accept connections from all adresses
-    serverSocketAdress.sin_addr.s_addr = htonl(INADDR_ANY);
-    // Define serverport
-    serverSocketAdress.sin_port = htons(port);
+    for(serv_if = serv_interfaces; serv_if; serv_if = serv_if->ai_next) {
+        serverSocketID = socket(serv_if->ai_family, serv_if->ai_socktype, serv_if->ai_protocol);
 
-    if (bind(serverSocketID, (struct sockaddr*)&serverSocketAdress, sizeof(serverSocketAdress)) < 0) {
+        if (serverSocketID == -1) {
+            error("Error creating socket!\n", argv[0]);
+        }
+
+        if (setsockopt(serverSocketID, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) == -1) {
+            error("Error while setting socket options!\n", argv[0]);
+            close(serverSocketID);
+            continue;
+        }
+
+        if(!(bind(serverSocketID, serv_if->ai_addr, serv_if->ai_addrlen))) {
+            // Binding to an address was successful
+            break;
+        }
+
         if (errno == EACCES) {
             close(serverSocketID);
             error("Error: To use ports below 1024, this program needs to be run as superuser (sudo)! The default port used is 13.\n", argv[0]);
-        } else {
-            close(serverSocketID);
-            error("Error binding socket!\n", argv[0]);
         }
+        close(serverSocketID);
     }
+
+    if(!serv_if) {
+        freeaddrinfo(serv_interfaces);
+        error("Error creating sockets on interfaces!\n", argv[0]);
+    }
+    freeaddrinfo(serv_interfaces);
 
     if (listen(serverSocketID, BACKLOG) == -1) {
         close(serverSocketID);
@@ -99,9 +133,8 @@ int main(int argc, char* argv[]) {
 
     for(;;) {
         // Accept a connection on the server port
-        int c = sizeof(struct sockaddr_in);
-        struct sockaddr_in clientSocketAdress;
-        int connectedClient = accept(serverSocketID, (struct sockaddr*)&clientSocketAdress, (socklen_t*)&c);
+        sockaddr_size = sizeof(struct sockaddr_in);
+        connectedClient = accept(serverSocketID, (struct sockaddr*) &clientSocketAdress, (socklen_t*) &sockaddr_size);
         if (connectedClient < 0) {
             if (errno == EINTR) {
                 // accept was interrupted, trying again
@@ -113,18 +146,20 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        char* message;
-        int tempsize = MBUFF_START_SIZE;
+        tempsize = MBUFF_START_SIZE;
         message = (char*) malloc(tempsize);
+
         if (message == NULL) {
             error("Error allocating space for message!\n", argv[0]);
         }
+
         memset(message, 0, tempsize);
         time_t timer;
+
         if (time(&timer) == (time_t)(-1)) {
             error("Error getting calendar time!\n", argv[0]);
         }
-        struct tm* tm_info;
+
         tm_info = localtime(&timer);
         if (tm_info == NULL) {
             error("Error getting localtime!\n", argv[0]);
@@ -143,6 +178,7 @@ int main(int argc, char* argv[]) {
         }
 
         free(message);
+
         if (shutdown(connectedClient, SHUT_RDWR) < 0) {
             error("Error shutting down socket!\n", argv[0]);
         }
