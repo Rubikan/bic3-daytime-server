@@ -111,30 +111,36 @@ int main(int argc, char* argv[]) {
         char* message;
         int tempsize = MBUFF_START_SIZE;
         message = (char*) malloc(tempsize);
+        if (message == NULL) {
+            error("Error allocating space for message!\n", argv[0]);
+        }
         memset(message, 0, tempsize);
         time_t timer;
         time(&timer);
         struct tm* tm_info;
         tm_info = localtime(&timer);
+        if (tm_info == NULL) {
+            error("Error getting localtime!\n", argv[0]);
+        }
 
         while(strftime(message, tempsize, "%A, %B %d, %Y %H:%M:%S-%Z\n", tm_info) <= 0) {
-            fprintf(stdout, "Loop, Message Size = %d.\n", tempsize);
             tempsize *= MBUFF_STEP_SIZE;
-            fprintf(stdout, "Loop, Message after resize = %d.\n", tempsize);;
             if((message = realloc(message, tempsize)) == NULL) {
                 error("Error resizing message buffer!\n", argv[0]);
             }
-            memset(message, 0, tempsize);
+            if(memset(message, 0, tempsize) != 0) {
+                error("Error clearing memory!\n", argv[0]);
+            }
         }
-
-        fprintf(stdout, "%s", message);
 
         if (write(connectedClient, message, tempsize) < 0) {
             error("Error writing to socket!\n", argv[0]);
         }
 
         free(message);
-        shutdown(connectedClient, SHUT_RDWR);
+        if (shutdown(connectedClient, SHUT_RDWR) < 0) {
+            error("Error shutting down socket!\n", argv[0]);
+        }
     }
 }
 
@@ -145,8 +151,12 @@ static void error(char* message, char* argv0) {
     // strcat instead of strncat should be okay, since string literals are always zero terminated
     strcat(output, ": ");
     strcat(output, message);
-    fprintf(stderr, "%s", output);
-    fflush(stderr);
+    if(fprintf(stderr, "%s", output) < 0) {
+        exit(EXIT_FAILURE);
+    }
+    if(fflush(stderr) == EOF) {
+        exit(EXIT_FAILURE);
+    }
     free(output);
     exit(EXIT_FAILURE);
 }
