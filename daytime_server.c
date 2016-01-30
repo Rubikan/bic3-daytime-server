@@ -36,6 +36,7 @@ static void error(char* message, char* argv0);
  * \param argv[] Argument vector
  */
 int main(int argc, char* argv[]) {
+    char* checkvar;
     // First, check if there is either no argument or 2
     if (argc != 1 && argc != 3) {
         error("Usage: daytime_server [-p port]\n", argv[0]);
@@ -47,9 +48,12 @@ int main(int argc, char* argv[]) {
         switch(o) {
             case 'p':
                 errno = 0;
-                port = strtol(optarg, NULL, 10);
+                port = strtol(optarg, &checkvar, 10);
                 if (errno == ERANGE || errno == EINVAL) {
                     error("Invalid input!\n", argv[0]);
+                }
+                if (checkvar[0] != '\0') {
+                    error("Only numerical input allowed for port!\n", argv[0]);
                 }
                 if (port < MIN_PORT || port > MAX_PORT) {
                     error("The port has to be in the range 0..65535!\n", argv[0]);
