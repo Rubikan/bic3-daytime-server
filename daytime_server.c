@@ -95,6 +95,7 @@ int main(int argc, char* argv[]) {
         error("Error while requesting server network interfaces.\n", argv[0]);
     }
 
+    // Loop until an socket is found where binding is successful
     for(serv_if = serv_interfaces; serv_if; serv_if = serv_if->ai_next) {
         serverSocketID = socket(serv_if->ai_family, serv_if->ai_socktype, serv_if->ai_protocol);
 
@@ -119,7 +120,7 @@ int main(int argc, char* argv[]) {
         }
         close(serverSocketID);
     }
-
+dded c
     if(!serv_if) {
         freeaddrinfo(serv_interfaces);
         error("Error creating sockets on interfaces!\n", argv[0]);
