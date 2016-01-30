@@ -115,9 +115,7 @@ int main(int argc, char* argv[]) {
         if (message == NULL) {
             error("Error allocating space for message!\n", argv[0]);
         }
-        if (memset(message, 0, tempsize) != 0) {
-            error("Error setting memory to zero!\n", argv[0]);
-        }
+        memset(message, 0, tempsize);
         time_t timer;
         if (time(&timer) == (time_t)(-1)) {
             error("Error getting calendar time!\n", argv[0]);
@@ -133,9 +131,7 @@ int main(int argc, char* argv[]) {
             if((message = realloc(message, tempsize)) == NULL) {
                 error("Error resizing message buffer!\n", argv[0]);
             }
-            if(memset(message, 0, tempsize) != 0) {
-                error("Error clearing memory!\n", argv[0]);
-            }
+            memset(message, 0, tempsize);
         }
 
         if (write(connectedClient, message, tempsize) < 0) {
@@ -160,12 +156,8 @@ static void error(char* message, char* argv0) {
     char* output = (char*) malloc(strlen(message) + strlen(argv0) + 3);
     strcpy(output, argv0);
     // strcat instead of strncat should be okay, since string literals are always zero terminated
-    if (strcat(output, ": ") != 0) {
-        exit(EXIT_FAILURE);
-    }
-    if (strcat(output, message) != 0) {
-        exit(EXIT_FAILURE);
-    }
+    strcat(output, ": ");
+    strcat(output, message);
     if (fprintf(stderr, "%s", output) < 0) {
         exit(EXIT_FAILURE);
     }
